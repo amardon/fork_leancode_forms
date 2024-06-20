@@ -1,21 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 
-class FormSwitchField<E extends Object> extends FieldBuilder<bool, E> {
-  FormSwitchField({
+class FormSwitchField<E extends Object> extends ConsumerWidget {
+  const FormSwitchField({
     super.key,
-    required super.field,
+    required StateNotifierProvider<FieldNotifier<bool, E>, FieldState<bool, E>>
+        stateProvider,
     String? labelText,
-  }) : super(
-          builder: (context, state) => Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              if (labelText != null) Flexible(child: Text(labelText)),
-              Switch(
-                value: state.value,
-                onChanged: field.getValueSetter(),
-              ),
-            ],
-          ),
-        );
+  })  : _stateProvider = stateProvider,
+        _labelText = labelText,
+        super();
+
+  final StateNotifierProvider<FieldNotifier<bool, E>, FieldState<bool, E>>
+      _stateProvider;
+  final String? _labelText;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        if (_labelText != null) Flexible(child: Text(_labelText!)),
+        Switch(
+          value: ref.watch(_stateProvider).value,
+          onChanged: ref.read(_stateProvider.notifier).getValueSetter(),
+        ),
+      ],
+    );
+  }
 }

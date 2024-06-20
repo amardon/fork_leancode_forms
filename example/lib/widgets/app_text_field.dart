@@ -3,7 +3,7 @@ import 'package:flutter_hooks/flutter_hooks.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 
 /// This is an example of custom text field created for an app.
-/// It's created in order to show how to use [FieldBuilder] with custom fields.
+/// It's created in order to show how to use [FieldNotifier] with custom fields.
 class AppTextField extends HookWidget {
   const AppTextField({
     super.key,

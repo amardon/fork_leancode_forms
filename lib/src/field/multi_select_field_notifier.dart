@@ -1,9 +1,10 @@
-import 'package:leancode_forms/src/field/cubit/field_cubit.dart';
+import 'package:leancode_forms/src/field/cubit/field_notifier.dart';
 
-/// A specialization of [FieldCubit] for a multiple choice of [V] values.
-class MultiSelectFieldCubit<V, E extends Object> extends FieldCubit<Set<V>, E> {
-  /// Creates a new [MultiSelectFieldCubit].
-  MultiSelectFieldCubit({
+/// A specialization of [FieldNotifier] for a multiple choice of [V] values.
+class MultiSelectFieldNotifier<V, E extends Object>
+    extends FieldNotifier<Set<V>, E> {
+  /// Creates a new [MultiSelectFieldNotifier].
+  MultiSelectFieldNotifier({
     required super.initialValue,
     super.validator,
     required this.options,

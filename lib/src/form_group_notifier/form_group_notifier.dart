@@ -3,13 +3,14 @@ import 'dart:async';
 import 'package:collection/collection.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:leancode_forms/src/field/cubit/field_cubit.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:leancode_forms/src/field/cubit/field_notifier.dart';
 import 'package:leancode_forms/src/utils/disposable.dart';
 import 'package:leancode_forms/src/utils/extensions/stream_extensions.dart';
 import 'package:rxdart/rxdart.dart';
 
-/// A parent of multiple [FieldCubit]s. Manages group validation and tracks changes
+/// A parent of multiple [FieldNotifier]s. Manages group validation and tracks changes
 /// as well as cleans up needed resources.
 ///
 /// A form is a tree which can be recursively defined:
@@ -20,9 +21,9 @@ import 'package:rxdart/rxdart.dart';
 /// Most methods broadcast to all subforms.
 ///
 /// Introducing cycles in forms is not supported and not checked against (most likely will cause a stack overflow somewhere).
-class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
-  /// Creates a new [FormGroupCubit].
-  FormGroupCubit({
+class FormGroupNotifier extends StateNotifier<FormGroupState> with Disposable {
+  /// Creates a new [FormGroupNotifier].
+  FormGroupNotifier({
     this.debugName = '',
     this.validateAll = false,
   }) : super(const FormGroupState()) {
@@ -48,7 +49,7 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
     addDisposable(
       onStatusChangedStream.listen((_) => _onFieldsStatusChanged()).cancel,
     );
-    addDisposable(() => Future.wait(state.subforms.map((e) => e.close())));
+    addDisposable(() => Future.wait(state.subforms.map((e) => e.dispose())));
   }
 
   /// A debug label for this form. Not significant to the form.
@@ -75,8 +76,8 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
 
   Future<void> _onFieldsChanged(
     ({
-      List<FieldCubit<dynamic, dynamic>> fields,
-      Set<FormGroupCubit> subforms,
+      List<FieldNotifier<dynamic, dynamic>> fields,
+      Set<FormGroupNotifier> subforms,
     }) data,
   ) async {
     await _onFieldsChangeSubscription?.cancel();
@@ -110,17 +111,15 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
 
   /// Takes ownership of registered fields. Will dispose all cubits.
   /// Fields are expected to be filled with initial states.
-  void registerFields(List<FieldCubit<dynamic, dynamic>> fields) {
-    emit(
-      FormGroupState(
-        wasModified: state.wasModified,
-        fields: fields,
-        subforms: state.subforms,
-        validationEnabled: state.validationEnabled,
-      ),
+  void registerFields(List<FieldNotifier<dynamic, dynamic>> fields) {
+    state = FormGroupState(
+      wasModified: state.wasModified,
+      fields: fields,
+      subforms: state.subforms,
+      validationEnabled: state.validationEnabled,
     );
 
-    addDisposable(() => Future.wait(fields.map((e) => e.close())));
+    addDisposable(() => fields.map((e) => e.dispose()));
 
     _initialFieldsState = getFieldValues();
     // inform that the fields have changed
@@ -206,31 +205,30 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
 
   /// Adds a subform to the current form.
   /// If [form] was already added as a subform this is a noop.
-  void addSubform(FormGroupCubit form) {
-    emit(
-      FormGroupState(
-        wasModified: state.wasModified,
-        fields: state.fields,
-        subforms: {...state.subforms, form},
-        validationEnabled: state.validationEnabled,
-      ),
+  void addSubform(FormGroupNotifier form) {
+    state = FormGroupState(
+      wasModified: state.wasModified,
+      fields: state.fields,
+      subforms: {...state.subforms, form},
+      validationEnabled: state.validationEnabled,
     );
   }
 
   /// Removes and disposes an owned subform.
   /// If [form] was not a subform this is a noop.
-  Future<void> removeSubform(FormGroupCubit form, {bool close = true}) async {
+  Future<void> removeSubform(
+    FormGroupNotifier form, {
+    bool close = true,
+  }) async {
     if (state.subforms.contains(form)) {
-      emit(
-        FormGroupState(
-          wasModified: state.wasModified,
-          fields: state.fields,
-          subforms: {...state.subforms}..remove(form),
-          validationEnabled: state.validationEnabled,
-        ),
+      state = FormGroupState(
+        wasModified: state.wasModified,
+        fields: state.fields,
+        subforms: {...state.subforms}..remove(form),
+        validationEnabled: state.validationEnabled,
       );
       if (close) {
-        await form.close();
+        await form.dispose();
       }
     }
   }
@@ -254,13 +252,11 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
     if (validationEnabled == state.validationEnabled) {
       return;
     }
-    emit(
-      FormGroupState(
-        wasModified: state.wasModified,
-        fields: state.fields,
-        subforms: state.subforms,
-        validationEnabled: validationEnabled,
-      ),
+    state = FormGroupState(
+      wasModified: state.wasModified,
+      fields: state.fields,
+      subforms: state.subforms,
+      validationEnabled: validationEnabled,
     );
     if (validationEnabled) {
       validateWithAutovalidate();
@@ -280,13 +276,11 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
       validateWithAutovalidate();
     }
 
-    emit(
-      FormGroupState(
-        wasModified: subformsWereModified || fieldsWereModified,
-        fields: state.fields,
-        subforms: state.subforms,
-        validationEnabled: state.validationEnabled,
-      ),
+    state = FormGroupState(
+      wasModified: subformsWereModified || fieldsWereModified,
+      fields: state.fields,
+      subforms: state.subforms,
+      validationEnabled: state.validationEnabled,
     );
   }
 
@@ -299,25 +293,23 @@ class FormGroupCubit extends Cubit<FormGroupState> with Disposable {
       (field) => field.state.isInProgress,
     );
 
-    emit(
-      FormGroupState(
-        wasModified: state.wasModified,
-        fields: state.fields,
-        subforms: state.subforms,
-        validationEnabled: state.validationEnabled,
-        validating: fieldsAreValidating || subformsIsValidating,
-      ),
+    state = FormGroupState(
+      wasModified: state.wasModified,
+      fields: state.fields,
+      subforms: state.subforms,
+      validationEnabled: state.validationEnabled,
+      validating: fieldsAreValidating || subformsIsValidating,
     );
   }
 
   @override
-  Future<void> close() async {
-    await dispose();
-    return super.close();
+  Future<void> dispose() async {
+    await disposeDisposables();
+    return super.dispose();
   }
 }
 
-/// The state of a [FormGroupCubit].
+/// The state of a [FormGroupNotifier].
 class FormGroupState with EquatableMixin {
   /// Creates a new [FormGroupState].
   const FormGroupState({
@@ -333,10 +325,10 @@ class FormGroupState with EquatableMixin {
   final bool wasModified;
 
   /// List of all registered fields by this form.
-  final List<FieldCubit<dynamic, dynamic>> fields;
+  final List<FieldNotifier<dynamic, dynamic>> fields;
 
   /// Set of registered subforms. Reference equality is assumed.
-  final Set<FormGroupCubit> subforms;
+  final Set<FormGroupNotifier> subforms;
 
   /// If false, validators are not ran and `validate` always returns true.
   final bool validationEnabled;
@@ -345,11 +337,11 @@ class FormGroupState with EquatableMixin {
   final bool validating;
 
   /// List of this form's fields including subforms' fields.
-  Iterable<FieldCubit<dynamic, dynamic>> get allFields =>
+  Iterable<FieldNotifier<dynamic, dynamic>> get allFields =>
       fields.followedBy(subforms.expand((e) => e.state.allFields));
 
   /// Map of all validation errors (including subfroms') grouped by fields
-  Map<FieldCubit<dynamic, dynamic>, dynamic> get validationErrors => {
+  Map<FieldNotifier<dynamic, dynamic>, dynamic> get validationErrors => {
         for (final field in allFields)
           if (field.state.validationError case final error?) field: error,
       };

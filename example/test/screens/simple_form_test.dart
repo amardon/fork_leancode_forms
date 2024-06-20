@@ -2,21 +2,21 @@ import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/main.dart';
-import 'package:leancode_forms_example/screens/simple_form.dart';
+import 'package:leancode_forms_example/screens/simple_form/simple_form_page.dart';
 
 void main() {
-  blocTest<SimpleFormCubit, FormGroupState>(
+  blocTest<SimpleFormNotifier, FormGroupState>(
     'sets email when setValue is called',
-    build: SimpleFormCubit.new,
+    build: SimpleFormNotifier.new,
     act: (cubit) => cubit.email.setValue('john@email.com'),
     verify: (cubit) {
       expect(cubit.email.state.value, 'john@email.com');
     },
   );
 
-  blocTest<SimpleFormCubit, FormGroupState>(
+  blocTest<SimpleFormNotifier, FormGroupState>(
     'sets ValidationErrors.emailTaken when email is taken',
-    build: SimpleFormCubit.new,
+    build: SimpleFormNotifier.new,
     act: (cubit) => cubit.email.setValue('john@email.com'),
     wait: const Duration(seconds: 2),
     verify: (cubit) async {
@@ -24,9 +24,9 @@ void main() {
     },
   );
 
-  blocTest<SimpleFormCubit, FormGroupState>(
+  blocTest<SimpleFormNotifier, FormGroupState>(
     'should not have any errors before submit method invoked',
-    build: SimpleFormCubit.new,
+    build: SimpleFormNotifier.new,
     verify: (cubit) {
       expect(cubit.email.state.error, null);
       expect(cubit.firstName.state.error, null);
@@ -34,9 +34,9 @@ void main() {
     },
   );
 
-  blocTest<SimpleFormCubit, FormGroupState>(
+  blocTest<SimpleFormNotifier, FormGroupState>(
     'validates fields and sets errors after submit method invoked',
-    build: SimpleFormCubit.new,
+    build: SimpleFormNotifier.new,
     act: (cubit) => cubit.validate(),
     verify: (cubit) {
       expect(cubit.email.state.error, ValidationError.empty);

@@ -21,7 +21,7 @@ mixin Disposable {
 
   /// Disposes of the object.
   @mustCallSuper
-  Future<void> dispose() async {
+  Future<void> disposeDisposables() async {
     final future = Future.wait(_disposeCallbacks.map((e) async => await e()));
     _disposeCallbacks.clear();
     await future;

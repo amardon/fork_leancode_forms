@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:leancode_forms_example/screens/complex_form.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:leancode_forms_example/screens/complex_form/complex_form_page.dart';
 import 'package:leancode_forms_example/screens/delivery_form.dart';
 import 'package:leancode_forms_example/screens/home_page.dart';
 import 'package:leancode_forms_example/screens/password_form.dart';
-import 'package:leancode_forms_example/screens/quiz_form.dart';
+import 'package:leancode_forms_example/screens/quiz_form/quiz_form.dart';
 import 'package:leancode_forms_example/screens/scroll_form.dart';
-import 'package:leancode_forms_example/screens/simple_form.dart';
+import 'package:leancode_forms_example/screens/simple_form/simple_form_page.dart';
 
 void main() {
-  runApp(const MainApp());
+  runApp(const ProviderScope(child: MainApp()));
 }
 
 class Routes {

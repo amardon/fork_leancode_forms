@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:leancode_forms/src/field/cubit/field_cubit.dart';
-import 'package:leancode_forms/src/field/text_field_cubit.dart';
-import 'package:leancode_forms/src/form_group_cubit/form_group_cubit.dart';
+import 'package:leancode_forms/src/field/cubit/field_notifier.dart';
+import 'package:leancode_forms/src/field/text_field_notifier.dart';
+import 'package:leancode_forms/src/form_group_notifier/form_group_notifier.dart';
 
 enum _Error1 { valueRequired }
 
@@ -23,7 +23,7 @@ void main() {
   group('FormGroupCubit', () {
     late FormGroupCubit form;
     late FormGroupCubit subform;
-    late TextFieldCubit<_Error1> field1;
+    late TextFieldNotifier<_Error1> field1;
     late FieldCubit<int, _Error2> field2;
     late FieldCubit<int, _Error2> subformField;
     late _ValidatorMock<String, _Error1> validator1;
@@ -32,7 +32,7 @@ void main() {
     setUp(() {
       validator1 = _ValidatorMock();
       validator2 = _ValidatorMock();
-      field1 = TextFieldCubit(
+      field1 = TextFieldNotifier(
         initialValue: _initialValue1,
         validator: validator1,
       );
@@ -280,7 +280,7 @@ void main() {
       test('is not valid when any of the fields is pending async validation',
           () async {
         validator1.validationResult = null;
-        final field = TextFieldCubit<_Error1>(
+        final field = TextFieldNotifier<_Error1>(
           initialValue: _initialValue1,
           asyncValidator: (_) async => validator1.validationResult,
         );
@@ -295,7 +295,7 @@ void main() {
 
       test('is not valid when async validation of the field fails', () async {
         validator1.validationResult = _Error1.valueRequired;
-        final field = TextFieldCubit<_Error1>(
+        final field = TextFieldNotifier<_Error1>(
           initialValue: _initialValue1,
           asyncValidator: (_) async => validator1.validationResult,
         );

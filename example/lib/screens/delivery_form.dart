@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 import 'package:leancode_forms_example/main.dart';
 import 'package:leancode_forms_example/screens/form_page.dart';
@@ -7,44 +7,34 @@ import 'package:leancode_forms_example/widgets/form_dropdown_field.dart';
 import 'package:leancode_forms_example/widgets/form_text_field.dart';
 
 /// This is an example of a form with dynamically added subforms.
-class DeliveryListFormScreen extends StatelessWidget {
+class DeliveryListFormScreen extends ConsumerWidget {
   const DeliveryListFormScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return BlocProvider<DeliveryListFormCubit>(
-      create: (context) => DeliveryListFormCubit(),
-      child: const DeliveryListForm(),
-    );
-  }
-}
-
-class DeliveryListForm extends StatelessWidget {
-  const DeliveryListForm({super.key});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return FormPage(
       title: 'Delivery List Form',
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ...context.watch<DeliveryListFormCubit>().deliveryList.map(
+            ...ref.watch(deliveryListFormProvider).subforms.map(
                   (e) => ConsumerSubform(
                     key: ValueKey(e.hashCode),
-                    form: e,
-                    onRemove:
-                        context.watch<DeliveryListFormCubit>().removeConsumer,
+                    form: e as ConsumerSubformNotifier,
+                    onRemove: ref
+                        .read(deliveryListFormProvider.notifier)
+                        .removeConsumer,
                   ),
                 ),
             ElevatedButton(
-              onPressed: context.read<DeliveryListFormCubit>().addConsumer,
+              onPressed:
+                  ref.read(deliveryListFormProvider.notifier).addConsumer,
               child: const Text('Add Consumer'),
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: context.read<DeliveryListFormCubit>().submit,
+              onPressed: ref.read(deliveryListFormProvider.notifier).submit,
               child: const Text('Submit'),
             ),
           ],
@@ -54,18 +44,18 @@ class DeliveryListForm extends StatelessWidget {
   }
 }
 
-class ConsumerSubform extends StatelessWidget {
+class ConsumerSubform extends ConsumerWidget {
   const ConsumerSubform({
     super.key,
     required this.form,
     required this.onRemove,
   });
 
-  final ConsumerSubformCubit form;
-  final ValueChanged<ConsumerSubformCubit> onRemove;
+  final ConsumerSubformNotifier form;
+  final ValueChanged<ConsumerSubformNotifier> onRemove;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       children: [
         Row(
@@ -80,14 +70,14 @@ class ConsumerSubform extends StatelessWidget {
         ),
         const SizedBox(height: 16),
         FormTextField(
-          field: form.email,
+          stateProvider: form.emailTextFieldProvider,
           translateError: validatorTranslator,
           labelText: 'Email',
           hintText: 'Enter consumer email',
         ),
         const SizedBox(height: 16),
-        FormDropdownField(
-          field: form.country,
+        FormDropDownField(
+          stateProvider: form.countrySelectFieldProvider,
           labelBuilder: (country) => country!.name,
           translateError: validatorTranslator,
           labelText: 'Country',
@@ -99,18 +89,27 @@ class ConsumerSubform extends StatelessWidget {
   }
 }
 
-class DeliveryListFormCubit extends FormGroupCubit {
-  DeliveryListFormCubit();
+final deliveryListFormProvider =
+    StateNotifierProvider<DeliveryListFormNotifier, FormGroupState>((ref) {
+  return DeliveryListFormNotifier(ref: ref);
+});
 
-  final deliveryList = <ConsumerSubformCubit>{};
+class DeliveryListFormNotifier extends FormGroupNotifier {
+  DeliveryListFormNotifier({
+    required this.ref,
+  });
+
+  final Ref ref;
+
+  final deliveryList = <ConsumerSubformNotifier>{};
 
   void addConsumer() {
-    final consumerForm = ConsumerSubformCubit();
+    final consumerForm = ConsumerSubformNotifier(ref: ref);
     addSubform(consumerForm);
     deliveryList.add(consumerForm);
   }
 
-  void removeConsumer(ConsumerSubformCubit form) {
+  void removeConsumer(ConsumerSubformNotifier form) {
     removeSubform(form);
     deliveryList.remove(form);
   }
@@ -118,8 +117,12 @@ class DeliveryListFormCubit extends FormGroupCubit {
   void submit() {
     if (validate()) {
       for (final consumer in deliveryList) {
-        debugPrint('Consumer email: ${consumer.email.state.value}');
-        debugPrint('Consumer country: ${consumer.country.state.value}');
+        debugPrint(
+          'Consumer email: ${ref.read(consumer.emailTextFieldProvider).value}',
+        );
+        debugPrint(
+          'Consumer country: ${ref.read(consumer.countrySelectFieldProvider).value}',
+        );
       }
       debugPrint('Form is valid');
     } else {
@@ -128,28 +131,40 @@ class DeliveryListFormCubit extends FormGroupCubit {
   }
 }
 
-class ConsumerSubformCubit extends FormGroupCubit {
-  ConsumerSubformCubit() {
+class ConsumerSubformNotifier extends FormGroupNotifier {
+  ConsumerSubformNotifier({
+    required this.ref,
+  }) {
     registerFields([
-      email,
-      country,
+      ref.watch(emailTextFieldProvider.notifier),
+      ref.watch(countrySelectFieldProvider.notifier),
     ]);
   }
 
-  final email = TextFieldCubit(
-    validator: filled(ValidationError.empty),
-  );
+  final Ref ref;
 
-  final country = SingleSelectFieldCubit<Country?, ValidationError>(
-    initialValue: null,
-    options: Country.values,
-    validator: (country) {
-      if (country == null) {
-        return ValidationError.empty;
-      }
-      return null;
-    },
-  );
+  final emailTextFieldProvider = StateNotifierProvider<
+      TextFieldNotifier<ValidationError>,
+      FieldState<String, ValidationError>>((ref) {
+    return TextFieldNotifier(
+      validator: filled(ValidationError.empty),
+    );
+  });
+
+  final countrySelectFieldProvider = StateNotifierProvider<
+      SingleSelectFieldNotifier<Country?, ValidationError>,
+      FieldState<Country?, ValidationError>>((ref) {
+    return SingleSelectFieldNotifier<Country?, ValidationError>(
+      initialValue: null,
+      options: Country.values,
+      validator: (country) {
+        if (country == null) {
+          return ValidationError.empty;
+        }
+        return null;
+      },
+    );
+  });
 }
 
 enum Country {

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:leancode_forms/leancode_forms.dart';
 
-class FocusableTextFieldCubit<E extends Object> extends TextFieldCubit<E> {
-  FocusableTextFieldCubit({
+class FocusableTextFieldNotifier<E extends Object>
+    extends TextFieldNotifier<E> {
+  FocusableTextFieldNotifier({
     super.initialValue,
     super.validator,
     super.asyncValidator,

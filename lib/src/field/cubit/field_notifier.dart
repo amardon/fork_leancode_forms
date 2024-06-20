@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:equatable/equatable.dart';
 import 'package:flutter/widgets.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:leancode_forms/src/utils/cancelable_future.dart';
 import 'package:rxdart/rxdart.dart';
 
@@ -20,9 +20,9 @@ typedef AsyncValidator<T, E extends Object> = Future<E?> Function(T);
 ///
 /// If autovalidate is true, the validator will be run after each field change.
 // ignore_for_file: avoid_positional_boolean_parameters
-class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
-  /// Creates a new [FieldCubit] with an initial value and a validator.
-  FieldCubit({
+class FieldNotifier<T, E extends Object>
+    extends StateNotifier<FieldState<T, E>> {
+  FieldNotifier({
     required T initialValue,
     Validator<T, E>? validator,
     AsyncValidator<T, E>? asyncValidator,
@@ -31,9 +31,7 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
         _validator = validator ?? ((_) => null),
         _asyncValidator = asyncValidator,
         _asyncValidationDebounce = asyncValidationDebounce,
-        super(
-          FieldState<T, E>(value: initialValue),
-        );
+        super(FieldState<T, E>(value: initialValue));
 
   final T _initialValue;
 
@@ -50,7 +48,7 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
   StreamSubscription<void>? _fieldsSubscription;
 
   /// Subscribes to the [fields] and revalidate the field when any of the fields change.
-  void subscribeToFields(List<FieldCubit<dynamic, dynamic>> fields) {
+  void subscribeToFields(List<FieldNotifier<dynamic, dynamic>> fields) {
     _fieldsSubscription?.cancel();
 
     _fieldsSubscription = Rx.combineLatest(
@@ -81,16 +79,13 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
       return;
     }
 
-    emit(
-      FieldState<T, E>(
-        value: value,
-        validationError: validationError,
-        asyncError: state.asyncError,
-        autovalidate: state.autovalidate,
-        readOnly: state.readOnly,
-        status:
-            validationError == null ? FieldStatus.valid : FieldStatus.invalid,
-      ),
+    state = FieldState<T, E>(
+      value: value,
+      validationError: validationError,
+      asyncError: state.asyncError,
+      autovalidate: state.autovalidate,
+      readOnly: state.readOnly,
+      status: validationError == null ? FieldStatus.valid : FieldStatus.invalid,
     );
   }
 
@@ -103,29 +98,25 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
     final completer = Completer<E?>();
 
     /// Update the field state with the pending status.
-    emit(
-      FieldState<T, E>(
-        value: value,
-        validationError: state.validationError,
-        asyncError: state.asyncError,
-        autovalidate: state.autovalidate,
-        readOnly: state.readOnly,
-        status: FieldStatus.pending,
-      ),
+    state = FieldState<T, E>(
+      value: value,
+      validationError: state.validationError,
+      asyncError: state.asyncError,
+      autovalidate: state.autovalidate,
+      readOnly: state.readOnly,
+      status: FieldStatus.pending,
     );
 
     // Start a new debounce timer.
     _debounceTimer = Timer(_asyncValidationDebounce, () async {
       /// Update the field state with the validating status.
-      emit(
-        FieldState<T, E>(
-          value: value,
-          validationError: state.validationError,
-          asyncError: state.asyncError,
-          autovalidate: state.autovalidate,
-          readOnly: state.readOnly,
-          status: FieldStatus.validating,
-        ),
+      state = FieldState<T, E>(
+        value: value,
+        validationError: state.validationError,
+        asyncError: state.asyncError,
+        autovalidate: state.autovalidate,
+        readOnly: state.readOnly,
+        status: FieldStatus.validating,
       );
 
       // Run the async validator and complete the Completer with the result.
@@ -139,14 +130,12 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
     final error = await completer.future;
 
     // Update the field state with the async validation result.
-    emit(
-      FieldState<T, E>(
-        value: value,
-        asyncError: error,
-        autovalidate: state.autovalidate,
-        readOnly: state.readOnly,
-        status: error == null ? FieldStatus.valid : FieldStatus.invalid,
-      ),
+    state = FieldState<T, E>(
+      value: value,
+      asyncError: error,
+      autovalidate: state.autovalidate,
+      readOnly: state.readOnly,
+      status: error == null ? FieldStatus.valid : FieldStatus.invalid,
     );
   }
 
@@ -164,14 +153,12 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
 
   /// Emits a [FieldState] with a new [error].
   void setError(E? error) {
-    emit(
-      FieldState<T, E>(
-        value: state.value,
-        validationError: error,
-        autovalidate: state.autovalidate,
-        readOnly: state.readOnly,
-        status: FieldStatus.invalid,
-      ),
+    state = FieldState<T, E>(
+      value: state.value,
+      validationError: error,
+      autovalidate: state.autovalidate,
+      readOnly: state.readOnly,
+      status: FieldStatus.invalid,
     );
   }
 
@@ -185,15 +172,13 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
     final error = _validator(state.value);
 
     if (error != state.validationError) {
-      emit(
-        FieldState<T, E>(
-          value: state.value,
-          validationError: error,
-          asyncError: state.asyncError,
-          autovalidate: state.autovalidate,
-          readOnly: state.readOnly,
-          status: error == null ? FieldStatus.valid : FieldStatus.invalid,
-        ),
+      state = FieldState<T, E>(
+        value: state.value,
+        validationError: error,
+        asyncError: state.asyncError,
+        autovalidate: state.autovalidate,
+        readOnly: state.readOnly,
+        status: error == null ? FieldStatus.valid : FieldStatus.invalid,
       );
     }
 
@@ -202,69 +187,61 @@ class FieldCubit<T, E extends Object> extends Cubit<FieldState<T, E>> {
 
   /// When autovalidate is true, setting a new value will trigger a validation
   void setAutovalidate(bool autovalidate) {
-    emit(
-      FieldState<T, E>(
-        value: state.value,
-        validationError: state.validationError,
-        asyncError: state.asyncError,
-        autovalidate: autovalidate,
-        readOnly: state.readOnly,
-        status: state.status,
-      ),
+    state = FieldState<T, E>(
+      value: state.value,
+      validationError: state.validationError,
+      asyncError: state.asyncError,
+      autovalidate: autovalidate,
+      readOnly: state.readOnly,
+      status: state.status,
     );
   }
 
   /// Prevents further changes of value [T].
   void markReadOnly() {
-    emit(
-      FieldState<T, E>(
-        value: state.value,
-        validationError: state.validationError,
-        asyncError: state.asyncError,
-        autovalidate: state.autovalidate,
-        readOnly: true,
-        status: state.status,
-      ),
+    state = FieldState<T, E>(
+      value: state.value,
+      validationError: state.validationError,
+      asyncError: state.asyncError,
+      autovalidate: state.autovalidate,
+      readOnly: true,
+      status: state.status,
     );
   }
 
   /// Allows further changes of value [T].
   void unmarkReadOnly() {
-    emit(
-      FieldState<T, E>(
-        value: state.value,
-        validationError: state.validationError,
-        asyncError: state.asyncError,
-        autovalidate: state.autovalidate,
-        status: state.status,
-      ),
+    state = FieldState<T, E>(
+      value: state.value,
+      validationError: state.validationError,
+      asyncError: state.asyncError,
+      autovalidate: state.autovalidate,
+      status: state.status,
     );
   }
 
   /// Clears all errors on this field.
   void clearErrors() {
-    emit(
-      FieldState<T, E>(
-        value: state.value,
-        autovalidate: state.autovalidate,
-        readOnly: state.readOnly,
-      ),
+    state = FieldState<T, E>(
+      value: state.value,
+      autovalidate: state.autovalidate,
+      readOnly: state.readOnly,
     );
   }
 
   /// Resets the field to its initial value.
   void reset() {
-    emit(FieldState(value: _initialValue));
+    state = FieldState(value: _initialValue);
   }
 
   @override
-  Future<void> close() {
+  void dispose() {
     _fieldsSubscription?.cancel();
-    return super.close();
+    return super.dispose();
   }
 }
 
-/// The status of a [FieldCubit].
+/// The status of a [FieldNotifier].
 enum FieldStatus {
   /// The field is valid.
   valid,
@@ -279,7 +256,7 @@ enum FieldStatus {
   validating,
 }
 
-/// The state of a [FieldCubit].
+/// The state of a [FieldNotifier].
 class FieldState<T, E extends Object> with EquatableMixin {
   /// Creates a new [FieldState].
   const FieldState({
@@ -307,14 +284,14 @@ class FieldState<T, E extends Object> with EquatableMixin {
   bool get isInvalid => status == FieldStatus.invalid;
 
   /// The current value.
-  /// Can be set manually by calling [FieldCubit.setValue].
+  /// Can be set manually by calling [FieldNotifier.setValue].
   final T value;
 
   /// The current validationError.
   /// If null, the value is considered valid.
-  /// Can be set manually by calling [FieldCubit.setError].
-  /// Can be cleared by calling [FieldCubit.clearErrors].
-  /// Can be set by the validator when [FieldCubit.validate] is called.
+  /// Can be set manually by calling [FieldNotifier.setError].
+  /// Can be cleared by calling [FieldNotifier.clearErrors].
+  /// Can be set by the validator when [FieldNotifier.validate] is called.
   final E? validationError;
 
   /// The current async error.
@@ -325,13 +302,13 @@ class FieldState<T, E extends Object> with EquatableMixin {
 
   /// Whether autovalidate is on.
   /// If true, the validator will be run after each field change.
-  /// If false, the validator will only be run when [FieldCubit.validate] is called.
-  /// Can be changed by calling [FieldCubit.setAutovalidate].
+  /// If false, the validator will only be run when [FieldNotifier.validate] is called.
+  /// Can be changed by calling [FieldNotifier.setAutovalidate].
   final bool autovalidate;
 
   /// Whether the field is readonly.
   /// If true, the value cannot be changed.
-  /// Can be changed by calling [FieldCubit.markReadOnly] and [FieldCubit.unmarkReadOnly].
+  /// Can be changed by calling [FieldNotifier.markReadOnly] and [FieldNotifier.unmarkReadOnly].
   final bool readOnly;
 
   /// The current status of the field.

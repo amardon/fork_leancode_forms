@@ -1,7 +1,7 @@
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:leancode_forms/leancode_forms.dart';
-import 'package:leancode_forms/src/field/cubit/field_cubit.dart';
+import 'package:leancode_forms/src/field/cubit/field_notifier.dart';
 
 enum _Error {
   malformed,
@@ -16,24 +16,24 @@ class _ValidatorMock {
 
 const _initialValue = 0;
 
-typedef _FieldCubit = FieldCubit<int, _Error>;
+typedef _FieldNotifier = FieldNotifier<int, _Error>;
 typedef _FieldState = FieldState<int, _Error>;
 
 void main() {
-  late FieldCubit<int, _Error> cubit;
+  late FieldNotifier<int, _Error> cubit;
   late _ValidatorMock validator;
 
   setUp(() {
     validator = _ValidatorMock();
-    cubit = FieldCubit(initialValue: _initialValue, validator: validator);
+    cubit = FieldNotifier(initialValue: _initialValue, validator: validator);
   });
 
   tearDown(() async {
-    await cubit.close();
+    cubit.dispose();
   });
 
   group('setValue', () {
-    blocTest<_FieldCubit, _FieldState>(
+    blocTest<_FieldNotifier, _FieldState>(
       'updates the value',
       build: () => cubit,
       act: (cubit) => cubit.setValue(10),
@@ -42,7 +42,7 @@ void main() {
       ],
     );
 
-    blocTest<_FieldCubit, _FieldState>(
+    blocTest<_FieldNotifier, _FieldState>(
       'does not update error if autovalidate is off',
       setUp: () {
         validator.validationResult = _Error.malformed;
@@ -54,7 +54,7 @@ void main() {
       ],
     );
 
-    blocTest<_FieldCubit, _FieldState>(
+    blocTest<_FieldNotifier, _FieldState>(
       'updates error if autovalidate is on',
       setUp: () {
         cubit.setAutovalidate(true);
@@ -72,7 +72,7 @@ void main() {
       ],
     );
 
-    blocTest<_FieldCubit, _FieldState>(
+    blocTest<_FieldNotifier, _FieldState>(
       'does not update the value when field is readonly',
       build: () => cubit,
       setUp: () {
@@ -84,7 +84,7 @@ void main() {
       expect: () => const <dynamic>[],
     );
 
-    blocTest<_FieldCubit, _FieldState>(
+    blocTest<_FieldNotifier, _FieldState>(
       'updates the value when field is readonly and force is true',
       build: () => cubit,
       setUp: () {
@@ -103,7 +103,7 @@ void main() {
   });
 
   group('reset', () {
-    blocTest<_FieldCubit, _FieldState>(
+    blocTest<_FieldNotifier, _FieldState>(
       'resets state to initial state',
       build: () => cubit,
       seed: () => const _FieldState(
@@ -121,7 +121,7 @@ void main() {
     );
 
     group('clearErrors', () {
-      blocTest<_FieldCubit, _FieldState>(
+      blocTest<_FieldNotifier, _FieldState>(
         'clears validationError and asyncError. Sets status to valid',
         build: () => cubit,
         seed: () => const _FieldState(
@@ -135,7 +135,7 @@ void main() {
         ],
       );
 
-      blocTest<_FieldCubit, _FieldState>(
+      blocTest<_FieldNotifier, _FieldState>(
         'does nothing if errors were not present',
         build: () => cubit,
         seed: () => const _FieldState(value: 1),
